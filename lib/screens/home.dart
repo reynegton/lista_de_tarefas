@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/painting.dart';
-import 'package:lista_de_tarefas/src/localfile.dart';
+import '../src/localfile.dart';
 
 
 class Home extends StatefulWidget {

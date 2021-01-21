@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/painting.dart';
 import '../src/localfile.dart';
 
-
 class Home extends StatefulWidget {
   @override
   _HomeState createState() => _HomeState();
@@ -15,6 +14,23 @@ class _HomeState extends State<Home> {
   Map<String, dynamic> _lastRemoved;
   int _lastRemovedPos;
 
+  Future<Null> _refresh() async {
+    await Future.delayed(
+      Duration(seconds: 1),
+    );
+    setState(() {
+      _toDoList.sort((a, b) {
+        if (a['ok'] && !b['ok'])
+          return 1;
+        else if (!a['ok'] && b['ok'])
+          return -1;
+        else
+          return 0;
+      });
+      saveData(_toDoList);
+    });
+  }
+
   void _addToDo() {
     setState(() {
       Map<String, dynamic> newTodo = Map();
@@ -23,6 +39,32 @@ class _HomeState extends State<Home> {
       _todoController.text = '';
       _toDoList.add(newTodo);
       saveData(_toDoList);
+    });
+  }
+
+  void _removeTodo(int index, BuildContext context) {
+    setState(() {
+      _lastRemoved = Map.from(_toDoList[index]);
+      _lastRemovedPos = index;
+      _toDoList.removeAt(index);
+
+      saveData(_toDoList);
+
+      final snack = SnackBar(
+        duration: Duration(seconds: 2),
+        content: Text('Tarefa ${_lastRemoved['title']} removida.'),
+        action: SnackBarAction(
+          label: 'Desfazer',
+          onPressed: () {
+            setState(() {
+              _toDoList.insert(_lastRemovedPos, _lastRemoved);
+              saveData(_toDoList);
+            });
+          },
+        ),
+      );
+      Scaffold.of(context).removeCurrentSnackBar();
+      Scaffold.of(context).showSnackBar(snack);
     });
   }
 
@@ -53,44 +95,26 @@ class _HomeState extends State<Home> {
       ),
       direction: DismissDirection.startToEnd,
       onDismissed: (direction) {
-        setState(() {
-          _lastRemoved = Map.from(_toDoList[index]);
-          _lastRemovedPos = index;
-          _toDoList.removeAt(index);
-
-          saveData(_toDoList);
-
-          final snack = SnackBar(
-            duration: Duration(seconds: 2),
-            content: Text('Tarefa ${_lastRemoved['title']} removida.'),
-            action: SnackBarAction(
-              label: 'Desfazer',
-              onPressed: () {
-                setState(() {
-                  _toDoList.insert(_lastRemovedPos, _lastRemoved);
-                  saveData(_toDoList);
-                });
-              },
-            ),
-          );
-          Scaffold.of(context).showSnackBar(snack);
-        });
+        _removeTodo(index, context);
       },
-      child: CheckboxListTile(
-        activeColor: Colors.teal,
-        title: Text(_toDoList[index]["title"]),
-        value: _toDoList[index]['ok'],
-        secondary: CircleAvatar(
-          backgroundColor: Colors.teal,
-
-          child: Icon(_toDoList[index]['ok'] ? Icons.check : Icons.error),
+      child: Card(
+        elevation: 5,
+        shadowColor: Colors.teal,
+        child: CheckboxListTile(
+          activeColor: Colors.teal,
+          title: Text(_toDoList[index]["title"]),
+          value: _toDoList[index]['ok'],
+          secondary: CircleAvatar(
+            backgroundColor: Colors.teal,
+            child: Icon(_toDoList[index]['ok'] ? Icons.check : Icons.error),
+          ),
+          onChanged: (check) {
+            setState(() {
+              _toDoList[index]['ok'] = check;
+              saveData(_toDoList);
+            });
+          },
         ),
-        onChanged: (check) {
-          setState(() {
-            _toDoList[index]['ok'] = check;
-            saveData(_toDoList);
-          });
-        },
       ),
     );
   }
@@ -111,6 +135,7 @@ class _HomeState extends State<Home> {
               children: [
                 Expanded(
                   child: TextField(
+                    cursorColor: Colors.teal,
                     controller: _todoController,
                     decoration: InputDecoration(
                       labelText: "Nova Tarefa",
@@ -128,10 +153,13 @@ class _HomeState extends State<Home> {
             ),
           ),
           Expanded(
-            child: ListView.builder(
-                padding: EdgeInsetsDirectional.only(top: 10),
-                itemCount: _toDoList.length,
-                itemBuilder: buildItem),
+            child: RefreshIndicator(
+              onRefresh: _refresh,
+              child: ListView.builder(
+                  padding: EdgeInsetsDirectional.only(top: 10),
+                  itemCount: _toDoList.length,
+                  itemBuilder: buildItem),
+            ),
           )
         ],
       ),
